@@ -78,7 +78,7 @@
     function initializeConnection() {
         // Initialize Postmonger connection
         if (typeof Postmonger !== 'undefined') {
-            connection = new Postmonger.Session();
+            connection = new Postmonger();
             
             connection.on('initActivity', onInitActivity);
             connection.on('requestedTokens', onGetTokens);
