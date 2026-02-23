@@ -4,8 +4,7 @@
  * This block allows marketers to create field name-value pairs
  * and save them to a Data Extension for translation processing.
  * 
- * Environment Variables Required:
- * - DE_EXTERNAL_KEY: Data Extension external key (configure in config.js or pass from SFMC)
+ * Uses backend API for SFMC authentication and Data Extension writes.
  */
 
 (function() {
@@ -13,7 +12,7 @@
 
     // Configuration
     const CONFIG = {
-        DE_EXTERNAL_KEY: 'D4344287-6DDF-49F6-B7A5-A7E0043A3C2C', // Update with your actual DE external key
+        API_ENDPOINT: '/save-to-de', // Backend API endpoint
         MIN_FIELDS: 1,
         MAX_FIELDS: 20,
         DEFAULT_FIELDS: [
@@ -26,11 +25,8 @@
     };
 
     // State management
-    let connection = null; // Will be initialized when Postmonger is available
-    let payload = {};
     let fieldCounter = 0;
-    let authToken = null;
-    let sfmcEndpoint = null;
+    let savedData = {}; // Store data for Content Builder persistence
 
     // DOM elements (cached for performance)
     const elements = {
@@ -48,7 +44,7 @@
     function init() {
         cacheElements();
         setupEventListeners();
-        initializeConnection();
+        loadSavedData();
         renderDefaultFields();
     }
 
@@ -73,114 +69,30 @@
     }
 
     /**
-     * Initialize Postmonger connection with SFMC
+     * Load saved data from localStorage (for persistence)
      */
-    function initializeConnection() {
-        // Initialize Postmonger connection
-        if (typeof Postmonger !== 'undefined') {
-            console.log('Postmonger available - initializing connection');
-            connection = new Postmonger();
-            
-            // Debug: Log ALL events received from Postmonger
-            const originalOn = connection.on.bind(connection);
-            connection.on = function(eventName, callback) {
-                console.log('Registering listener for event:', eventName);
-                return originalOn(eventName, function(...args) {
-                    console.log(`Event received: ${eventName}`, args);
-                    return callback(...args);
-                });
-            };
-            
-            // Listen for all possible event variations
-            connection.on('initActivity', onInitActivity);
-            connection.on('initActivityRunningHover', onInitActivity);
-            connection.on('initActivityRunningModal', onInitActivity);
-            
-            // Try multiple event name variations for tokens and endpoints
-            connection.on('requestedTokens', onGetTokens);
-            connection.on('getTokens', onGetTokens);
-            connection.on('tokens', onGetTokens);
-            
-            connection.on('requestedEndpoints', onGetEndpoints);
-            connection.on('getEndpoints', onGetEndpoints);
-            connection.on('endpoints', onGetEndpoints);
-            
-            // Trigger the handshake
-            console.log('Triggering ready event...');
-            connection.trigger('ready');
-            
-            // Wait a bit for initActivity before requesting tokens
-            setTimeout(() => {
-                console.log('Requesting tokens...');
-                connection.trigger('requestTokens');
+    function loadSavedData() {
+        try {
+            const saved = localStorage.getItem('sfmc-translation-block-data');
+            if (saved) {
+                savedData = JSON.parse(saved);
                 
-                console.log('Requesting endpoints...');
-                connection.trigger('requestEndpoints');
-            }, 100);
-        } else {
-            console.warn('Postmonger not available - running in standalone mode');
-        }
-    }
-
-    /**
-     * Handle activity initialization
-     * @param {Object} data - Activity data from SFMC
-     */
-    function onInitActivity(data) {
-        console.log('onInitActivity called with data:', data);
-        console.log('Full data structure:', JSON.stringify(data, null, 2));
-        
-        if (data) {
-            payload = data;
-            
-            // Check if tokens/endpoints are in the payload (Content Builder pattern)
-            if (data.token || data.authToken) {
-                console.log('Found token in initActivity payload');
-                authToken = data.token || data.authToken;
+                if (savedData.emailName) {
+                    elements.emailName.value = savedData.emailName;
+                }
+                
+                if (savedData.fields && savedData.fields.length > 0) {
+                    // Clear default fields and load saved ones
+                    elements.fieldsContainer.innerHTML = '';
+                    fieldCounter = 0;
+                    savedData.fields.forEach(field => {
+                        addFieldRow(field.name, field.value);
+                    });
+                    return; // Skip rendering default fields
+                }
             }
-            
-            if (data.endpoint || data.restEndpoint) {
-                console.log('Found endpoint in initActivity payload');
-                sfmcEndpoint = data.endpoint || data.restEndpoint;
-            }
-        }
-
-        // Load saved data if exists
-        const savedData = (payload && payload.arguments && payload.arguments.execute) 
-            ? payload.arguments.execute.inArguments[0] 
-            : null;
-
-        if (savedData) {
-            if (savedData.emailName) {
-                elements.emailName.value = savedData.emailName;
-            }
-            if (savedData.fields) {
-                loadSavedFields(savedData.fields);
-            }
-        }
-    }
-
-    /**
-     * Receive authentication tokens from SFMC
-     * @param {Object} tokens - Authentication tokens
-     */
-    function onGetTokens(tokens) {
-        console.log('onGetTokens called with:', tokens);
-        if (tokens && tokens.token) {
-            authToken = tokens.token;
-            console.log('Auth token received:', authToken ? 'YES' : 'NO');
-        }
-    }
-
-    /**
-     * Receive SFMC endpoints
-     * @param {Object} endpoints - SFMC endpoints
-     */
-    function onGetEndpoints(endpoints) {
-        console.log('onGetEndpoints called with:', endpoints);
-        if (endpoints && endpoints.restEndpoint) {
-            sfmcEndpoint = endpoints.restEndpoint;
-            console.log('SFMC endpoint set to:', sfmcEndpoint);
+        } catch (error) {
+            console.warn('Could not load saved data:', error);
         }
     }
 
@@ -189,19 +101,6 @@
      */
     function renderDefaultFields() {
         CONFIG.DEFAULT_FIELDS.forEach(field => {
-            addFieldRow(field.name, field.value);
-        });
-    }
-
-    /**
-     * Load previously saved fields
-     * @param {Array} fields - Array of field objects
-     */
-    function loadSavedFields(fields) {
-        elements.fieldsContainer.innerHTML = '';
-        fieldCounter = 0;
-        
-        fields.forEach(field => {
             addFieldRow(field.name, field.value);
         });
     }
@@ -334,7 +233,7 @@
     }
 
     /**
-     * Save data to SFMC Data Extension
+     * Save data to SFMC Data Extension via backend API
      */
     async function saveToDataExtension() {
         const data = collectFieldData();
@@ -348,17 +247,14 @@
         showMessage('info', 'Saving to Data Extension...');
 
         try {
-            // Convert fields array to multiple DE rows (key-value pairs)
-            const dataRows = convertFieldsToDataRows(data.emailName, data.fields);
-            
-            // Save to Data Extension via REST API
-            const success = await insertDataExtensionRows(dataRows);
+            // Call backend API to save to Data Extension
+            const success = await callBackendAPI(data);
             
             if (success) {
-                showMessage('success', `Successfully saved ${dataRows.length} row(s) to Data Extension!`);
+                showMessage('success', `Successfully saved ${data.fields.length} field(s) to Data Extension!`);
                 
-                // Save to Content Builder payload for persistence
-                saveToPayload(data);
+                // Save to localStorage for persistence
+                saveToLocalStorage(data);
             } else {
                 throw new Error('Failed to save data');
             }
@@ -371,90 +267,53 @@
     }
 
     /**
-     * Convert fields array to multiple Data Extension rows (key-value pairs)
-     * @param {string} emailName - Email name identifier
-     * @param {Array} fields - Array of field objects
-     * @returns {Array} Array of Data Extension rows
-     */
-    function convertFieldsToDataRows(emailName, fields) {
-        const dataRows = [];
-        
-        fields.forEach(field => {
-            dataRows.push({
-                'email name': emailName,
-                'fieldname': field.name,
-                'field value': field.value,
-                'EntryDate': new Date().toISOString()
-            });
-        });
-        
-        return dataRows;
-    }
-
-    /**
-     * Insert multiple rows into the Data Extension via SFMC REST API
-     * @param {Array} dataRows - Array of data rows to insert
+     * Call backend API to insert rows into Data Extension
+     * @param {Object} data - Object with emailName and fields
      * @returns {Promise<boolean>} Success status
      */
-    async function insertDataExtensionRows(dataRows) {
-        // If no auth token or endpoint, simulate success for testing
-        if (!authToken || !sfmcEndpoint) {
-            console.warn('No SFMC connection. Simulating save for testing.');
-            console.log('Would save rows:', dataRows);
-            await simulateDelay(1000);
-            return true;
-        }
-
-        const url = `${sfmcEndpoint}hub/v1/dataevents/key:${CONFIG.DE_EXTERNAL_KEY}/rowset`;
+    async function callBackendAPI(data) {
+        const url = CONFIG.API_ENDPOINT;
         
-        // Convert data rows to API format
-        const requestBody = dataRows.map(row => ({
-            keys: {
-                'email name': row['email name'],
-                'fieldname': row['fieldname']
-            },
-            values: row
-        }));
+        console.log('Calling backend API:', url);
+        console.log('Sending data:', data);
 
         try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify({
+                    emailName: data.emailName,
+                    fields: data.fields
+                })
             });
 
+            const result = await response.json();
+
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`API error: ${response.status} - ${errorText}`);
+                throw new Error(result.error || `API error: ${response.status}`);
             }
 
-            return true;
+            console.log('Backend API response:', result);
+            return result.success;
+            
         } catch (error) {
-            console.error('Data Extension insert error:', error);
+            console.error('Backend API error:', error);
             throw error;
         }
     }
 
     /**
-     * Save data to Content Builder payload for persistence
+     * Save data to localStorage for persistence
      * @param {Object} data - Object with emailName and fields
      */
-    function saveToPayload(data) {
-        payload.arguments = payload.arguments || {};
-        payload.arguments.execute = payload.arguments.execute || {};
-        payload.arguments.execute.inArguments = [{
-            emailName: data.emailName,
-            fields: data.fields
-        }];
-        
-        payload.metaData = payload.metaData || {};
-        payload.metaData.isConfigured = true;
-        
-        if (connection) {
-            connection.trigger('updateActivity', payload);
+    function saveToLocalStorage(data) {
+        try {
+            localStorage.setItem('sfmc-translation-block-data', JSON.stringify(data));
+            console.log('Data saved to localStorage');
+        } catch (error) {
+            console.warn('Could not save to localStorage:', error);
         }
     }
 
@@ -510,32 +369,14 @@
         return div.innerHTML;
     }
 
-    /**
-     * Simulate delay (for testing without SFMC connection)
-     * @param {number} ms - Milliseconds to delay
-     * @returns {Promise} Promise that resolves after delay
-     */
-    function simulateDelay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
     // Expose removeFieldRow to global scope for onclick handler
     window.removeFieldRow = removeFieldRow;
 
-    // Initialize when DOM and Postmonger are ready
-    function waitForPostmonger() {
-        if (typeof Postmonger !== 'undefined') {
-            init();
-        } else {
-            console.warn('Postmonger not loaded yet, retrying...');
-            setTimeout(waitForPostmonger, 100);
-        }
-    }
-
+    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', waitForPostmonger);
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        waitForPostmonger();
+        init();
     }
 
 })();
