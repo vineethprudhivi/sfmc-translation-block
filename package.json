@@ -21,12 +21,13 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/sfmc-custom-block.git"
+    "url": "git+https://github.com/vineethprudhivi/sfmc-custom-block.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/sfmc-custom-block/issues"
+    "url": "https://github.com/vineethprudhivi/sfmc-custom-block/issues"
   },
-  "homepage": "https://github.com/yourusername/sfmc-custom-block#readme",
+  "homepage": "https://github.com/vineethprudhivi/sfmc-custom-block#readme",
   "devDependencies": {},
   "dependencies": {}
 }
+
