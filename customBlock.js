@@ -16,11 +16,7 @@
         MIN_FIELDS: 1,
         MAX_FIELDS: 20,
         DEFAULT_FIELDS: [
-            { name: 'subject', value: '' },
-            { name: 'preheader', value: '' },
-            { name: 'header', value: '' },
-            { name: 'body', value: '' },
-            { name: 'footer', value: '' }
+            { name: 'header', value: '' }
         ]
     };
 
@@ -44,8 +40,10 @@
     function init() {
         cacheElements();
         setupEventListeners();
-        loadSavedData();
-        renderDefaultFields();
+        const hasSavedData = loadSavedData();
+        if (!hasSavedData) {
+            renderDefaultFields();
+        }
     }
 
     /**
@@ -70,6 +68,7 @@
 
     /**
      * Load saved data from localStorage (for persistence)
+     * @returns {boolean} True if saved data was loaded
      */
     function loadSavedData() {
         try {
@@ -82,18 +81,19 @@
                 }
                 
                 if (savedData.fields && savedData.fields.length > 0) {
-                    // Clear default fields and load saved ones
+                    // Clear container and load saved fields
                     elements.fieldsContainer.innerHTML = '';
                     fieldCounter = 0;
                     savedData.fields.forEach(field => {
                         addFieldRow(field.name, field.value);
                     });
-                    return; // Skip rendering default fields
+                    return true; // Saved data was loaded
                 }
             }
         } catch (error) {
             console.warn('Could not load saved data:', error);
         }
+        return false; // No saved data
     }
 
     /**
