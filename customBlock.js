@@ -26,7 +26,7 @@
     };
 
     // State management
-    let connection = new Postmonger.Session();
+    let connection = null; // Will be initialized when Postmonger is available
     let payload = {};
     let fieldCounter = 0;
     let authToken = null;
@@ -76,14 +76,21 @@
      * Initialize Postmonger connection with SFMC
      */
     function initializeConnection() {
-        connection.on('initActivity', onInitActivity);
-        connection.on('requestedTokens', onGetTokens);
-        connection.on('requestedEndpoints', onGetEndpoints);
-        
-        // Trigger the handshake
-        connection.trigger('ready');
-        connection.trigger('requestTokens');
-        connection.trigger('requestEndpoints');
+        // Initialize Postmonger connection
+        if (typeof Postmonger !== 'undefined') {
+            connection = new Postmonger.Session();
+            
+            connection.on('initActivity', onInitActivity);
+            connection.on('requestedTokens', onGetTokens);
+            connection.on('requestedEndpoints', onGetEndpoints);
+            
+            // Trigger the handshake
+            connection.trigger('ready');
+            connection.trigger('requestTokens');
+            connection.trigger('requestEndpoints');
+        } else {
+            console.warn('Postmonger not available - running in standalone mode');
+        }
     }
 
     /**
@@ -399,7 +406,9 @@
         payload.metaData = payload.metaData || {};
         payload.metaData.isConfigured = true;
         
-        connection.trigger('updateActivity', payload);
+        if (connection) {
+            connection.trigger('updateActivity', payload);
+        }
     }
 
     /**
@@ -466,11 +475,20 @@
     // Expose removeFieldRow to global scope for onclick handler
     window.removeFieldRow = removeFieldRow;
 
-    // Initialize when DOM is ready
+    // Initialize when DOM and Postmonger are ready
+    function waitForPostmonger() {
+        if (typeof Postmonger !== 'undefined') {
+            init();
+        } else {
+            console.warn('Postmonger not loaded yet, retrying...');
+            setTimeout(waitForPostmonger, 100);
+        }
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', waitForPostmonger);
     } else {
-        init();
+        waitForPostmonger();
     }
 
 })();
