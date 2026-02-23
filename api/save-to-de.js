@@ -71,11 +71,11 @@ async function insertDataExtensionRows(authToken, dataRows) {
     const restEndpoint = `https://${SFMC_CONFIG.subdomain}.rest.marketingcloudapis.com/`;
     const url = `${restEndpoint}hub/v1/dataevents/key:${SFMC_CONFIG.deExternalKey}/rowset`;
     
-    // Convert data rows to API format
+    // Convert data rows to API format (matching DE field names exactly)
     const requestBody = dataRows.map(row => ({
         keys: {
             'email name': row['email name'],
-            'fieldname': row['fieldname']
+            'field name': row['field name']
         },
         values: row
     }));
@@ -133,10 +133,10 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Convert fields to DE rows
+        // Convert fields to DE rows (matching your DE field names exactly)
         const dataRows = fields.map(field => ({
             'email name': emailName,
-            'fieldname': field.name,
+            'field name': field.name,
             'field value': field.value,
             'EntryDate': new Date().toISOString()
         }));
