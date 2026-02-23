@@ -25,11 +25,22 @@ This custom block streamlines the workflow of sending email content to external 
 
 ## Quick Start
 
+**For detailed setup instructions, see [SETUP.md](SETUP.md)**
+
+### Quick Overview
+
+1. **Get SFMC API Credentials** (Setup → Apps → Installed Packages → Create Server-to-Server API Integration)
+2. **Create Data Extension** with composite primary key (email name + fieldname)
+3. **Deploy to Vercel** and configure environment variables
+4. **Configure Custom Content Block** in SFMC Setup
+5. **Test** in Content Builder
+
 ### Prerequisites
 
-1. Salesforce Marketing Cloud account with Content Builder access
-2. Data Extension created with appropriate columns
-3. API credentials (automatically provided by SFMC in Content Builder context)
+1. Salesforce Marketing Cloud account with admin access
+2. Vercel account (free tier works fine)
+3. Git and GitHub account
+4. SFMC API credentials (Server-to-Server OAuth)
 
 ### Data Extension Setup
 
@@ -119,24 +130,47 @@ Configure these in [customBlock.js](customBlock.js):
 ```
 sfmc-custom-block/
 ├── index.html          # UI and styling
-├── customBlock.js      # Business logic and SFMC integration
+├── customBlock.js      # Frontend logic
+├── api/
+│   └── save-to-de.js   # Backend API (Vercel serverless function)
+├── .env.example        # Environment variable template
+├── vercel.json         # Vercel deployment configuration
+├── package.json        # Dependencies
+├── SETUP.md           # Detailed setup instructions
 └── README.md          # Documentation
 ```
 
 ### Key Components
 
-- **Postmonger Integration**: Communication layer between custom block and SFMC
-- **Data Collection Module**: Gathers and validates field data
-- **REST API Client**: Interacts with SFMC Data Extension APIs
-- **UI Manager**: Handles dynamic field rendering and user interactions
+- **Frontend (index.html + customBlock.js)**: User interface for data entry, validation, and display
+- **Backend API (api/save-to-de.js)**: Vercel serverless function that handles SFMC authentication and Data Extension writes
+- **SFMC Server-to-Server OAuth**: Secure authentication between backend and SFMC REST APIs
+- **Data Extension**: Key-value pair storage in SFMC
 
 ### Data Flow
 
-1. User enters field names and values in the UI
-2. JavaScript validates input (required fields, duplicates, format)
-3. Data is converted to Data Extension row format
-4. REST API call saves data to the specified Data Extension
-5. Response is handled and user receives confirmation
+```
+1. User enters data in browser
+   ↓
+2. Frontend validates input (required fields, duplicates, XSS protection)
+   ↓
+3. Frontend sends POST to /api/save-to-de
+   ↓
+4. Backend gets OAuth token from SFMC
+   ↓
+5. Backend converts data to DE row format
+   ↓
+6. Backend calls SFMC REST API to insert rows
+   ↓
+7. Success/error response sent to frontend
+   ↓
+8. User sees confirmation message
+```
+
+**Why Backend API?**
+- Custom Content Blocks (unlike Journey Builder activities) cannot make authenticated SFMC API calls from the browser
+- Backend handles OAuth authentication securely without exposing credentials
+- Server-to-Server integration is more secure than client-side tokens
 
 ## Testing
 
