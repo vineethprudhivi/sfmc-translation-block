@@ -111,6 +111,12 @@
      * @param {string} value - Field value
      */
     function addFieldRow(name = '', value = '') {
+        // Handle case when called from click event (event object passed as first arg)
+        if (name && typeof name === 'object') {
+            name = '';
+            value = '';
+        }
+        
         // Enforce max fields limit
         if (getFieldCount() >= CONFIG.MAX_FIELDS) {
             showMessage('error', `Maximum ${CONFIG.MAX_FIELDS} fields allowed.`);
