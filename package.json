@@ -28,6 +28,7 @@
   },
   "homepage": "https://github.com/vineethprudhivi/sfmc-custom-block#readme",
   "devDependencies": {},
-  "dependencies": {}
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
 }
-
