@@ -1,0 +1,32 @@
+{
+  "name": "sfmc-translation-custom-block",
+  "version": "1.0.0",
+  "description": "Salesforce Marketing Cloud custom content block for email translation data entry",
+  "main": "index.html",
+  "scripts": {
+    "dev": "echo 'Open index.html in your browser'",
+    "vercel": "vercel",
+    "vercel:prod": "vercel --prod"
+  },
+  "keywords": [
+    "salesforce",
+    "marketing-cloud",
+    "sfmc",
+    "custom-content-block",
+    "translation",
+    "data-extension"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/sfmc-custom-block.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/sfmc-custom-block/issues"
+  },
+  "homepage": "https://github.com/yourusername/sfmc-custom-block#readme",
+  "devDependencies": {},
+  "dependencies": {}
+}
