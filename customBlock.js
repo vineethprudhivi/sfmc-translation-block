@@ -78,6 +78,7 @@
     function initializeConnection() {
         // Initialize Postmonger connection
         if (typeof Postmonger !== 'undefined') {
+            console.log('Postmonger available - initializing connection');
             connection = new Postmonger();
             
             connection.on('initActivity', onInitActivity);
@@ -85,8 +86,13 @@
             connection.on('requestedEndpoints', onGetEndpoints);
             
             // Trigger the handshake
+            console.log('Triggering ready event...');
             connection.trigger('ready');
+            
+            console.log('Requesting tokens...');
             connection.trigger('requestTokens');
+            
+            console.log('Requesting endpoints...');
             connection.trigger('requestEndpoints');
         } else {
             console.warn('Postmonger not available - running in standalone mode');
@@ -98,7 +104,9 @@
      * @param {Object} data - Activity data from SFMC
      */
     function onInitActivity(data) {
+        console.log('onInitActivity called with data:', data);
         if (data) {
+
             payload = data;
         }
 
@@ -122,8 +130,10 @@
      * @param {Object} tokens - Authentication tokens
      */
     function onGetTokens(tokens) {
+        console.log('onGetTokens called with:', tokens);
         if (tokens && tokens.token) {
             authToken = tokens.token;
+            console.log('Auth token received:', authToken ? 'YES' : 'NO');
         }
     }
 
@@ -132,8 +142,10 @@
      * @param {Object} endpoints - SFMC endpoints
      */
     function onGetEndpoints(endpoints) {
+        console.log('onGetEndpoints called with:', endpoints);
         if (endpoints && endpoints.restEndpoint) {
             sfmcEndpoint = endpoints.restEndpoint;
+            console.log('SFMC endpoint set to:', sfmcEndpoint);
         }
     }
 
