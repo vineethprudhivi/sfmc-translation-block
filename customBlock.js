@@ -126,14 +126,14 @@
             <input 
                 type="text" 
                 class="field-name" 
-                placeholder="Field name (e.g., subject)" 
+                placeholder="Field name" 
                 value="${sanitizeHtml(name)}"
                 data-row="${rowId}"
             />
             <input 
                 type="text" 
                 class="field-value" 
-                placeholder="Field value" 
+                placeholder="Value" 
                 value="${sanitizeHtml(value)}"
                 data-row="${rowId}"
             />
