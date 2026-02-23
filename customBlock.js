@@ -81,19 +81,42 @@
             console.log('Postmonger available - initializing connection');
             connection = new Postmonger();
             
+            // Debug: Log ALL events received from Postmonger
+            const originalOn = connection.on.bind(connection);
+            connection.on = function(eventName, callback) {
+                console.log('Registering listener for event:', eventName);
+                return originalOn(eventName, function(...args) {
+                    console.log(`Event received: ${eventName}`, args);
+                    return callback(...args);
+                });
+            };
+            
+            // Listen for all possible event variations
             connection.on('initActivity', onInitActivity);
+            connection.on('initActivityRunningHover', onInitActivity);
+            connection.on('initActivityRunningModal', onInitActivity);
+            
+            // Try multiple event name variations for tokens and endpoints
             connection.on('requestedTokens', onGetTokens);
+            connection.on('getTokens', onGetTokens);
+            connection.on('tokens', onGetTokens);
+            
             connection.on('requestedEndpoints', onGetEndpoints);
+            connection.on('getEndpoints', onGetEndpoints);
+            connection.on('endpoints', onGetEndpoints);
             
             // Trigger the handshake
             console.log('Triggering ready event...');
             connection.trigger('ready');
             
-            console.log('Requesting tokens...');
-            connection.trigger('requestTokens');
-            
-            console.log('Requesting endpoints...');
-            connection.trigger('requestEndpoints');
+            // Wait a bit for initActivity before requesting tokens
+            setTimeout(() => {
+                console.log('Requesting tokens...');
+                connection.trigger('requestTokens');
+                
+                console.log('Requesting endpoints...');
+                connection.trigger('requestEndpoints');
+            }, 100);
         } else {
             console.warn('Postmonger not available - running in standalone mode');
         }
@@ -105,9 +128,21 @@
      */
     function onInitActivity(data) {
         console.log('onInitActivity called with data:', data);
+        console.log('Full data structure:', JSON.stringify(data, null, 2));
+        
         if (data) {
-
             payload = data;
+            
+            // Check if tokens/endpoints are in the payload (Content Builder pattern)
+            if (data.token || data.authToken) {
+                console.log('Found token in initActivity payload');
+                authToken = data.token || data.authToken;
+            }
+            
+            if (data.endpoint || data.restEndpoint) {
+                console.log('Found endpoint in initActivity payload');
+                sfmcEndpoint = data.endpoint || data.restEndpoint;
+            }
         }
 
         // Load saved data if exists
