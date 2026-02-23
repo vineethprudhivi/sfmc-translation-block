@@ -12,7 +12,7 @@
 
     // Configuration
     const CONFIG = {
-        API_ENDPOINT: '/save-to-de', // Backend API endpoint
+        API_ENDPOINT: '/api/save-to-de', // Backend API endpoint
         MIN_FIELDS: 1,
         MAX_FIELDS: 20,
         DEFAULT_FIELDS: [
